@@ -138,7 +138,7 @@ class _VoiceNoteScreenState extends State<VoiceNoteScreen> {
   }
 
   void _showAIAssistant() {
-    // TODO: Implement AI assistant if needed
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('AI Assistant coming soon!'),

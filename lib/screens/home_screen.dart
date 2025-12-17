@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: () {
-                // TODO: Implement search
+
               },
             ),
         ],
