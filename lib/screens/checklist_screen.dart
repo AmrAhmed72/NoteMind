@@ -25,10 +25,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
     _titleController = TextEditingController(text: widget.note.title);
     _newItemController = TextEditingController();
     _items = widget.note.checklist?.map((item) {
-      final newId = item.id ?? UniqueKey().toString(); // تأكيد id فريد
-      print('ChecklistItem - id: $newId, text: ${item.text}, isDone: ${item.isDone}'); // للتحقق
       return ChecklistItem(
-        id: newId,
+        id: item.id,
         text: item.text,
         isDone: item.isDone,
       );
@@ -69,6 +67,38 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
     });
   }
 
+  Future<void> _editItem(int index) async {
+    final controller = TextEditingController(text: _items[index].text);
+    final updatedText = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit checklist item'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: null,
+          decoration: const InputDecoration(hintText: 'Item text'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (updatedText != null && updatedText.isNotEmpty && mounted) {
+      setState(() {
+        _items[index] = _items[index].copyWith(text: updatedText);
+      });
+    }
+  }
+
   Future<void> _saveChecklist() async {
     final title = _titleController.text.trim();
 
@@ -90,7 +120,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
 
     final notesProvider = Provider.of<NotesProvider>(context, listen: false);
 
-    if (widget.note.title.isEmpty && (widget.note.checklist?.isEmpty ?? true)) {
+    if (notesProvider.getNoteById(widget.note.id) == null) {
       await notesProvider.addNote(updatedNote);
     } else {
       await notesProvider.updateNote(updatedNote);
@@ -102,6 +132,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
           content: const Text('Checklist saved!'),
           backgroundColor: Theme.of(context).primaryColor,
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(left: 16, right: 88, bottom: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -177,21 +208,45 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
         children: [
           // Title field
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _titleController,
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    fontSize: 28,
-                  ),
-              decoration: InputDecoration(
-                hintText: 'Checklist Title',
-                hintStyle: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      fontSize: 28,
-                      color: Colors.grey,
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 18,
+                      color: Theme.of(context).primaryColor,
                     ),
-                border: InputBorder.none,
-              ),
-              maxLines: null,
+                    const SizedBox(width: 8),
+                    Text(
+                      'Review checklist',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _titleController,
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                        fontSize: 28,
+                      ),
+                  decoration: InputDecoration(
+                    hintText: 'Checklist Title',
+                    hintStyle: Theme.of(context).textTheme.displayLarge?.copyWith(
+                          fontSize: 28,
+                          color: Colors.grey,
+                        ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  maxLines: null,
+                ),
+              ],
             ),
           )
               .animate()
@@ -200,8 +255,14 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
 
           // Progress indicator
           if (_items.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -230,7 +291,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 8,
-                      backgroundColor: Colors.grey.withOpacity(0.2),
+                      backgroundColor: Colors.grey.withValues(alpha: 0.2),
                       valueColor: AlwaysStoppedAnimation<Color>(
                         Theme.of(context).primaryColor,
                       ),
@@ -277,6 +338,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
             )
                 : ReorderableListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
+              buildDefaultDragHandles: false,
               itemCount: _items.length,
               onReorder: (oldIndex, newIndex) {
                 setState(() {
@@ -289,11 +351,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
               },
               itemBuilder: (context, index) {
                 final item = _items[index];
-                print('Building item at index $index, id: ${item.id}, text: ${item.text}');
-                if (item.id == null) {
-                  print('Error: Item at index $index has null id');
-                  return const SizedBox.shrink();
-                }
                 return Dismissible(
                   key: ValueKey('${item.id}_$index'),
                   direction: DismissDirection.endToStart,
@@ -319,7 +376,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
               color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -363,7 +420,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
 
   Widget _buildChecklistItem(int index) {
     final item = _items[index];
-    print('Building _buildChecklistItem at index $index, id: ${item.id}, text: ${item.text}');
 
     return Dismissible(
       key: ValueKey('${item.id}_$index'),
@@ -397,6 +453,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                   : Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
+          onTap: () => _editItem(index),
           trailing: ReorderableDragStartListener(
             index: index,
             child: const Icon(Icons.drag_handle, color: Colors.grey),

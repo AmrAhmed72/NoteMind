@@ -134,6 +134,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           content: const Text('Note saved!'),
           backgroundColor: Theme.of(context).primaryColor,
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(left: 16, right: 88, bottom: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),

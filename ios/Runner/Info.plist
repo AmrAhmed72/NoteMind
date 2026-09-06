@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>NoteMind uses the camera to scan notes into checklists.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>NoteMind uses your photos to scan notes into checklists.</string>
 </dict>
 </plist>

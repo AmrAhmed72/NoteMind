@@ -11,14 +11,14 @@
 class APIConfig {
   // Gemini API Configuration
   // Get your API key from: https://aistudio.google.com/app/apikey
-  static const String geminiApiKey = 'AIzaSyDMXy-KaJVOgmwTlRQkoM6l0wfF9gRWxGc';
+   static const String geminiApiKey = 'AIzaSyC3rvDPCus3g_a2xgy3JQzlbpEHT9W_rDI';
 
   // Gemini API Settings
   static const String geminiModel = 'gemini-2.5-flash';
   static const String geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
   // Token limits
-  static const int maxTokensPerRequest = 1000; // حدود Gemini
+   static const int maxTokensPerRequest = 3000; // Supports longer Arabic checklists
   static const int maxInputTokens = 3000; // حدود الإدخال
 
   // API request settings
@@ -27,8 +27,7 @@ class APIConfig {
 
   /// Check if Gemini API is configured
   static bool get isGeminiConfigured =>
-      geminiApiKey != 'YOUR_GEMINI_API_KEY_HERE' &&
-          geminiApiKey.isNotEmpty;
+     geminiApiKey.isNotEmpty;
 
   /// Instructions for setting up API key
   static const String setupInstructions = '''
@@ -40,10 +39,7 @@ To use AI features in NoteMind:
    - Create a new API key
    - Copy the key
 
-2. Add your API key:
-   - Open lib/config/api_config.dart
-   - Replace 'YOUR_GEMINI_API_KEY_HERE' with your actual API key
-   - Save the file
+2. Add your API key directly to the geminiApiKey string above.
 
 3. Security best practices:
    - Add api_config.dart to .gitignore
@@ -51,10 +47,9 @@ To use AI features in NoteMind:
    - Monitor your API usage at https://aistudio.google.com/
    - Set usage limits if needed
 
-4. Alternative: Use environment variables
-   - For production apps, use --dart-define:
-     flutter run --dart-define=GEMINI_API_KEY=your_key_here
-   - Access with: const String.fromEnvironment('GEMINI_API_KEY')
+4. Production security:
+    - Production applications should call Gemini through a secure backend rather than
+       exposing a permanent API key inside the APK.
 
 Note: Gemini API offers free tier with limits. Check details at:
 https://ai.google.dev/pricing

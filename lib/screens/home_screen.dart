@@ -8,6 +8,7 @@ import 'note_editor_screen.dart';
 import 'checklist_screen.dart';
 import 'settings_screen.dart';
 import 'voice_note_screen.dart';
+import 'scan_checklist_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,26 +20,71 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _selectedIndex = 0;
   bool _isFabExpanded = false;
+  bool _isSearching = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _selectedIndex == 0
-              ? 'All Notes'
-              : _selectedIndex == 1
-              ? 'Checklists'
-              : 'Settings',
-          style: Theme.of(context).textTheme.titleLarge,
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (value) => setState(() => _searchQuery = value),
+                style: Theme.of(context).textTheme.bodyLarge,
+                decoration: const InputDecoration(
+                  hintText: 'Search notes',
+                  border: InputBorder.none,
+                  filled: false,
+                ),
+              )
+            : Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'NoteMind',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            if (_selectedIndex != 2)
+              Text(
+                _selectedIndex == 0 ? 'Your ideas, in focus' : 'Small steps, visible progress',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+              ),
+          ],
         ),
         actions: [
-          if (_selectedIndex != 2)
+          if (_isSearching && _searchQuery.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                _searchController.clear();
+                setState(() => _searchQuery = '');
+              },
+              tooltip: 'Clear search',
+            ),
+          if (_isSearching)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _closeSearch,
+              tooltip: 'Close search',
+            )
+          else if (_selectedIndex != 2)
             IconButton(
               icon: const Icon(Icons.search),
-              onPressed: () {
-
-              },
+              onPressed: () => setState(() => _isSearching = true),
+              tooltip: 'Search notes',
             ),
         ],
       ),
@@ -63,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             setState(() {
               _selectedIndex = index;
               _isFabExpanded = false;
+              _closeSearch();
             });
           },
           items: const [
@@ -91,34 +138,179 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     return Consumer<NotesProvider>(
       builder: (context, notesProvider, child) {
-        final notes = _selectedIndex == 0
+        final allNotes = _selectedIndex == 0
             ? notesProvider.notes
             : notesProvider.checklistNotes;
+        final notes = _searchQuery.trim().isEmpty
+            ? allNotes
+            : allNotes.where((note) {
+                final query = _searchQuery.toLowerCase();
+                return note.title.toLowerCase().contains(query) ||
+                    note.content.toLowerCase().contains(query) ||
+                    (note.checklist ?? []).any(
+                      (item) => item.text.toLowerCase().contains(query),
+                    );
+              }).toList();
 
-        if (notes.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: notes.length,
-          itemBuilder: (context, index) {
-            return _buildNoteCard(notes[index], index);
-          },
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: _buildOverview(notesProvider),
+            ),
+            if (notes.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _buildEmptyState(),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+                sliver: SliverList.builder(
+                  itemCount: notes.length,
+                  itemBuilder: (context, index) {
+                    return _buildNoteCard(notes[index], index);
+                  },
+                ),
+              ),
+          ],
         );
       },
     );
   }
 
+  void _closeSearch() {
+    _searchController.clear();
+    _searchQuery = '';
+    _isSearching = false;
+  }
+
+  Widget _buildOverview(NotesProvider notesProvider) {
+    final theme = Theme.of(context);
+    final greeting = DateTime.now().hour < 12
+        ? 'Good morning'
+        : DateTime.now().hour < 18
+            ? 'Good afternoon'
+            : 'Good evening';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            greeting,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _selectedIndex == 0 ? 'Make room for your next thought.' : 'Keep the momentum going.',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Row(
+              children: [
+                _buildStat(
+                  context,
+                  Icons.layers_outlined,
+                  '${notesProvider.notes.length}',
+                  'All notes',
+                ),
+                _buildStatDivider(context),
+                _buildStat(
+                  context,
+                  Icons.checklist_outlined,
+                  '${notesProvider.checklistNotes.length}',
+                  'Checklists',
+                ),
+                _buildStatDivider(context),
+                _buildStat(
+                  context,
+                  Icons.note_alt_outlined,
+                  '${notesProvider.textNotes.length}',
+                  'Notes',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            _selectedIndex == 0 ? 'Recent notes' : 'Your checklists',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStat(
+    BuildContext context,
+    IconData icon,
+    String value,
+    String label,
+  ) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 19, color: theme.primaryColor),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.58),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatDivider(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 42,
+      color: Theme.of(context).dividerColor,
+    );
+  }
+
   Widget _buildEmptyState() {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            _selectedIndex == 0 ? Icons.sticky_note_2 : Icons.checklist_outlined,
-            size: 80,
-            color: Colors.grey,
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _selectedIndex == 0 ? Icons.sticky_note_2_outlined : Icons.checklist_outlined,
+              size: 44,
+              color: theme.primaryColor,
+            ),
           )
               .animate()
               .fadeIn(duration: 1000.ms)
@@ -126,14 +318,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 16),
           Text(
             _selectedIndex == 0 ? 'No notes yet' : 'No checklists yet',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Colors.grey,
-            ),
+            style: theme.textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            'Tap + to create your first ${_selectedIndex == 0 ? 'note' : 'checklist'}',
-            style: Theme.of(context).textTheme.bodyMedium,
+            'Use the + button to capture your first ${_selectedIndex == 0 ? 'thought' : 'list'}',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
           ),
         ],
       ),
@@ -142,9 +333,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildNoteCard(Note note, int index) {
     final dateFormat = DateFormat('MMM dd, yyyy');
+    final theme = Theme.of(context);
+    final accent = note.isChecklist
+        ? theme.colorScheme.secondary
+        : theme.primaryColor;
+    final cardColor = Color.lerp(
+      theme.colorScheme.surface,
+      accent,
+      theme.brightness == Brightness.light ? 0.045 : 0.1,
+    )!;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: accent.withValues(alpha: 0.32)),
+      ),
+      margin: const EdgeInsets.only(bottom: 14),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _openNote(note),
         borderRadius: BorderRadius.circular(16),
@@ -158,15 +364,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Expanded(
                     child: Text(
                       note.title.isEmpty ? 'Untitled' : note.title,
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: theme.textTheme.titleLarge,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          note.isChecklist ? Icons.checklist : Icons.notes_outlined,
+                          size: 14,
+                          color: accent,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          note.isChecklist ? 'List' : 'Note',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: accent,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 2),
                   IconButton(
                     icon: const Icon(Icons.delete_outline),
                     onPressed: () => _deleteNote(note.id),
-                    color: Colors.red,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    tooltip: 'Delete note',
                   ),
                 ],
               ),
@@ -176,23 +409,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               else
                 Text(
                   note.content.isEmpty ? 'No content' : note.content,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: theme.textTheme.bodyMedium,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
               const SizedBox(height: 12),
+              Divider(color: theme.dividerColor),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Icon(
                     note.isChecklist ? Icons.checklist : Icons.note,
                     size: 16,
-                    color: Theme.of(context).primaryColor,
+                    color: accent,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     dateFormat.format(note.date),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
                     ),
                   ),
                 ],
@@ -263,15 +498,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildAnimatedFAB() {
     return SizedBox(
-      width: 200,
-      height: 250,
+      width: 220,
+      height: _isFabExpanded ? 360 : 90,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomRight,
         children: [
           if (_isFabExpanded) ...[
             Positioned(
-              bottom: 180,
+              bottom: 290,
+              right: 0,
+              child: FloatingActionButton.extended(
+                heroTag: 'scan',
+                onPressed: _scanChecklist,
+                icon: const Icon(Icons.document_scanner_outlined),
+                label: const Text('Scan to Checklist'),
+              ),
+            ),
+            Positioned(
+              bottom: 220,
               right: 0,
               child: FloatingActionButton.extended(
               heroTag: 'voice',
@@ -285,7 +530,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 .slideY(begin: 1, end: 0),
           ),
           Positioned(
-            bottom: 110,
+            bottom: 150,
             right: 0,
             child: FloatingActionButton.extended(
               heroTag: 'checklist',
@@ -299,7 +544,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 .slideY(begin: 1, end: 0),
           ),
           Positioned(
-            bottom: 40,
+            bottom: 80,
             right: 0,
             child: FloatingActionButton.extended(
               heroTag: 'text',
@@ -334,6 +579,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ],
       ),
+    );
+  }
+
+  void _scanChecklist() {
+    setState(() {
+      _isFabExpanded = false;
+    });
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ScanChecklistScreen()),
     );
   }
 

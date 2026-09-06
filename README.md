@@ -31,6 +31,13 @@ A modern and intelligent Flutter Notes App focused on simplicity, smooth design,
 - Powered by OpenAI GPT-3.5-turbo
 - Requires OpenAI API key (see [AI_ASSISTANT_GUIDE.md](AI_ASSISTANT_GUIDE.md))
 
+### 📷 Scan to Checklist
+- Capture a note with the camera or select an image from the gallery
+- Gemini Vision extracts actionable Arabic, English, or mixed-language tasks
+- Existing checked states are preserved when Gemini can determine them
+- Review, edit, delete, add, and complete items before saving
+- Saves as a normal Hive checklist note after confirmation
+
 ### ⚙️ Settings
 - Toggle between Light / Dark mode with smooth transition
 - Clear all notes option with confirmation dialog
@@ -82,6 +89,19 @@ For speech-to-text functionality, add the following to `android/app/src/main/And
 <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 <uses-permission android:name="android.permission.INTERNET"/>
 ```
+
+The scan feature also requests camera and photo access through `image_picker`.
+
+### Gemini Configuration
+
+Pass the key at build time instead of committing it to the app:
+
+```bash
+flutter run --dart-define=GEMINI_API_KEY=your_key_here
+```
+
+Production applications should call Gemini through a secure backend rather than
+exposing a permanent API key inside the APK.
 
 ### iOS Permissions
 
