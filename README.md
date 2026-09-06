@@ -94,14 +94,30 @@ The scan feature also requests camera and photo access through `image_picker`.
 
 ### Gemini Configuration
 
-Pass the key at build time instead of committing it to the app:
+Do not put your Gemini key in `lib/config/api_config.dart`, `README.md`, or any
+file pushed to GitHub. Each developer should use their own key locally.
+
+1. Create a key at https://aistudio.google.com/app/apikey.
+2. Run the app with your key:
 
 ```bash
 flutter run --dart-define=GEMINI_API_KEY=your_key_here
 ```
 
-Production applications should call Gemini through a secure backend rather than
-exposing a permanent API key inside the APK.
+Replace `your_key_here` with your own key. For a release build, use the same
+define when building:
+
+```bash
+flutter build apk --release --dart-define=GEMINI_API_KEY=your_key_here
+```
+
+The key is available to the app through `APIConfig.geminiApiKey`.
+
+This protects the source repository, but a key included in a mobile build can
+still be extracted. Production applications should call Gemini through a
+secure backend with server-side environment variables, authentication, and
+rate limiting.
+
 
 ### iOS Permissions
 

@@ -1,17 +1,9 @@
-/// API Configuration for NoteMind
-/// 
-/// This file contains API keys and configuration settings.
-/// 
-/// IMPORTANT SECURITY NOTES:
-/// 1. Never commit API keys to version control
-/// 2. Add this file to .gitignore
-/// 3. For production, use environment variables or secure storage
-/// 4. Consider using Flutter's --dart-define for build-time configuration
-
 class APIConfig {
   // Gemini API Configuration
   // Get your API key from: https://aistudio.google.com/app/apikey
-   static const String geminiApiKey = 'AIzaSyC3rvDPCus3g_a2xgy3JQzlbpEHT9W_rDI';
+   // Development only. For production, keep Gemini behind a secure backend.
+   static const String geminiApiKey =
+         String.fromEnvironment('GEMINI_API_KEY');
 
   // Gemini API Settings
   static const String geminiModel = 'gemini-2.5-flash';
@@ -39,10 +31,11 @@ To use AI features in NoteMind:
    - Create a new API key
    - Copy the key
 
-2. Add your API key directly to the geminiApiKey string above.
+2. Add your own key when running locally:
+   flutter run --dart-define=GEMINI_API_KEY=your_key_here
 
 3. Security best practices:
-   - Add api_config.dart to .gitignore
+   - Never put an API key directly in this source file
    - Never share your API key publicly
    - Monitor your API usage at https://aistudio.google.com/
    - Set usage limits if needed
